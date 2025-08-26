@@ -1,0 +1,25 @@
+
+/*
+ * Compiles the Slack C# slot and adds to vocabulary
+ * 
+ * Notice, depends upon the C# file actually existing!
+ */
+
+// Post slot
+io.file.load:/modules/slack/csharp/PostSlack.cs
+system.compile
+   references
+      .:netstandard
+      .:System.Linq
+      .:System.Runtime
+      .:System.Net.Http
+      .:System.Text.Json
+      .:System.Private.Uri
+      .:System.Net.Primitives
+      .:System.Private.CoreLib
+      .:magic.node
+      .:magic.node.extensions
+      .:magic.signals.contracts
+   code:x:@io.file.load
+   assembly-name:magic.slack.PostSlack.dll
+system.plugin.load:x:@system.compile
