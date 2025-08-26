@@ -1,0 +1,47 @@
+
+/*
+ * Creates the dynamic slot named [magic.slack.post]
+ */
+slots.create:magic.slack.post
+
+   // Sanity checking invocation.
+   validators.mandatory:x:@.arguments/*/bot_token
+   validators.mandatory:x:@.arguments/*/channel
+   validators.mandatory:x:@.arguments/*/text
+
+   // Creating our token.
+   .token
+   set-value:x:@.token
+      strings.concat
+         .:"Bearer "
+         get-value:x:@.arguments/*/bot_token
+
+   // Invoking Slack.
+   http.post:"https://slack.com/api/chat.postMessage"
+      convert:true
+      headers
+         Authorization:x:@.token
+      payload
+         channel:x:@.arguments/*/channel
+         text:x:@.arguments/*/text
+
+   // Sanity checking result.
+   if
+      and
+         mte:x:@http.post
+            .:int:200
+         lt:x:@http.post
+            .:int:300
+         not-exists:x:@http.post/*/content/*/error
+         exists:x:@http.post/*/content/*/ts
+      .lambda
+
+         // Success!
+         yield
+            ts:x:@http.post/*/content/*/ts
+
+   // Failure
+   throw:x:@http.post/*/content/*/error
+      status:int:500
+      public:bool:true
+
