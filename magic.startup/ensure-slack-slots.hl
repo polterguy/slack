@@ -23,3 +23,19 @@ system.compile
    code:x:@io.file.load
    assembly-name:magic.slack.PostSlack.dll
 system.plugin.load:x:@system.compile
+
+
+// Webhook slot
+io.file.load:/modules/slack/csharp/ProcessMessage.cs
+system.compile
+   references
+      .:netstandard
+      .:System.Runtime
+      .:System.Private.CoreLib
+      .:System.Linq
+      .:magic.node
+      .:magic.node.extensions
+      .:magic.signals.contracts
+   code:x:@io.file.load
+   assembly-name:magic.slack.ProcessMessage.dll
+system.plugin.load:x:@system.compile
