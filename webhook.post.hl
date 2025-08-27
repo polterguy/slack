@@ -39,12 +39,18 @@ if
       exists:x:@.arguments/*/event/*/thread_ts
    .lambda
 
-      // This might be an interesting message.
+      /*
+       * Checking if this is an interesting message.
+       *
+       * Notice, we only deal with replies to messages sent from the cloudlet, and we ignore all other messages.
+       */
       data.connect:slack
          data.read
             table:requests
             columns
                request_id
+               external_id
+               text
             where
                and
                   ts.eq:x:@.arguments/*/event/*/thread_ts
@@ -58,6 +64,30 @@ if
                   values
                      request_id:x:@data.read/*/*/request_id
                      text:x:@.arguments/*/event/*/text
+
+               // Listing all callback slots that needs to be notified of event.
+               slots.vocabulary:magic.slack.callbacks.
+
+               // Iterating through each slot returned above and invoking it.
+               for-each:x:@slots.vocabulary/*
+
+                  // Helper lambda object.
+                  .exe
+                     signal:SLOT_HERE
+
+                  // Making sure we invoke the correct slot.
+                  set-value:x:@.exe/*/signal
+                     get-value:x:@.dp/#
+
+                  // Parametrizing slot invocation.
+                  add:x:@.exe/*/signal
+                     .
+                        external_id:x:@data.read/*/*/external_id
+                        text:x:@.arguments/*/event/*/text
+                        original_request:x:@data.read/*/*/text
+
+                  // Invoking slot.
+                  eval:x:@.exe
 
 // Returning success to Slack.
 return
