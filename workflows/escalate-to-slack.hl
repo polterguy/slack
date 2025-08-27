@@ -1,0 +1,33 @@
+
+/*
+ * Post to Slack
+ * 
+ * This function posts the specified [text] message to the specified [channel] group in Slack.
+ */
+.arguments
+
+   // Injected by the framework, and is the session ID, AKA the SignalR socket channel.
+   _session:string
+
+   // Mandatory message to post.
+   text:string
+
+   // Mandatory channel to post question to.
+   channel:string
+
+// Retieving bot_token from config.
+.token
+set-value:x:@.token
+   config.get:"magic:slack:bot_token"
+
+// Executing slot to do the heavy lifting.
+execute:magic.slack.post
+   bot_token:x:@.token
+   channel:x:@.arguments/*/channel
+   text:x:@.arguments/*/text
+   external_id:x:@.arguments/*/_session
+
+// Returning success to caller.
+return
+   result:success
+   message:Notice, the request will be answered when we have an available human customer service agent
