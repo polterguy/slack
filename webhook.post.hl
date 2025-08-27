@@ -80,6 +80,7 @@ if
                      get-value:x:@.dp/#
 
                   // Parametrizing slot invocation.
+                  unwrap:x:+/*/*
                   add:x:@.exe/*/signal
                      .
                         external_id:x:@data.read/*/*/external_id
