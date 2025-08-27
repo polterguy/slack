@@ -1,13 +1,27 @@
 
 /*
- * Creates the dynamic slot named [magic.slack.post]
+ * Creates the dynamic slot named [magic.slack.post].
+ *
+ * Arguments;
+ * 
+ * - `bot_token` is mandatory token required to interact with Slack.
+ * - `channel` is mandatory channel name from Slack.
+ * - `text` is mandatory text message to post to Slack channel.
+ * - `external_id` is an optional value intended to allow for serializing the external id of the request, required to deal with replies in client code.
  */
 slots.create:magic.slack.post
 
    // Sanity checking invocation.
    validators.mandatory:x:@.arguments/*/bot_token
+   validators.regex:x:@.arguments/*/token
+      regex:^xoxb-
    validators.mandatory:x:@.arguments/*/channel
+   validators.string:x:@.arguments/*/channel
+      min:5
+      max:100
    validators.mandatory:x:@.arguments/*/text
+   validators.string:x:@.arguments/*/text
+      min:1
 
    // Creating our token.
    .token
@@ -38,7 +52,28 @@ slots.create:magic.slack.post
          exists:x:@http.post/*/content/*/ts
       .lambda
 
-         // Success!
+         // Success, first storing request into database!
+         data.connect:slack
+
+            // Checking if we've got an external ID.
+            if
+               and
+                  exists:x:@.arguments/*/external_id
+                  not-null:x:@.arguments/*/external_id
+               .lambda
+
+                  // Making sure we insert external ID into database.
+                  add:x:@data.connect/*/data.create/*/values
+                     get-nodes:x:@.arguments/*/external_id
+
+            // Inserting record into database.
+            data.create
+               table:requests
+               values
+                  ts:x:@http.post/*/content/*/ts
+                  text:x:@.arguments/*/text
+
+         // Then returning timestamp/ID to caller.
          yield
             ts:x:@http.post/*/content/*/ts
 

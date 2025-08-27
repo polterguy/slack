@@ -1,0 +1,64 @@
+
+/*
+ * Slack webhook, invoked when somebody replies to a message sent by the bot.
+ *
+ * Will store the reply in 'requests' table of 'slack' database,
+ * in addition to invoking callbacks registered as "handlers" for replies.
+ */
+.arguments:*
+
+// Logging entire invocation
+lambda2hyper:x:../*
+log.info:x:-
+
+/*
+ * Checking if this is a URL challenge request, at which point we just echo the challenge back to caller.
+ *
+ * Notice, this is a hand shake request sent by Slack to verify the integrity of the event callback.
+ */
+if
+   and
+      exists:x:@.arguments/*/challenge
+      not-null:x:@.arguments/*/challenge
+      exists:x:@.arguments/*/type
+      eq:x:@.arguments/*/type
+         .:url_verification
+   .lambda
+
+      // Returning the challenge as is.
+      yield
+         challenge:x:@.arguments/*/challenge
+
+/*
+ * Retrieving the ts value and checking if we've got the original request in our internal database.
+ */
+if
+   and
+      eq:x:@.arguments/*/event/*/type
+         .:message
+      exists:x:@.arguments/*/event/*/thread_ts
+   .lambda
+
+      // This might be an interesting message.
+      data.connect:slack
+         data.read
+            table:requests
+            columns
+               request_id
+            where
+               and
+                  ts.eq:x:@.arguments/*/event/*/thread_ts
+         if
+            exists:x:@data.read/*
+            .lambda
+
+               // This is a reply to a message originating from cloudlet, hence persisting reply.
+               data.create
+                  table:replies
+                  values
+                     request_id:x:@data.read/*/*/request_id
+                     message:x:@.arguments/*/event/*/text
+
+// Returning success to Slack.
+return
+   result:success
