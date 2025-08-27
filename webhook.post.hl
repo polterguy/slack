@@ -57,7 +57,7 @@ if
                   table:replies
                   values
                      request_id:x:@data.read/*/*/request_id
-                     message:x:@.arguments/*/event/*/text
+                     text:x:@.arguments/*/event/*/text
 
 // Returning success to Slack.
 return
