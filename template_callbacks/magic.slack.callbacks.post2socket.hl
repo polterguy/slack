@@ -1,0 +1,20 @@
+
+/*
+ * Custom callback for slack replies that simply posts the reply to the socket channel.
+ *
+ * This allows the cloudlet to post messages back to the chatbot frontend as replies are originating from Slack.
+ */
+slots.create:magic.slack.callbacks.post2socket
+
+   // Buffer for incoming arguments.
+   .args
+      external_id:x:@.arguments/*/external_id
+      text:x:@.arguments/*/text
+   unwrap:x:-/*
+
+   // Invoking client over SignalR.
+   sockets.signal:x:@.args/*/external_id
+      args
+         type:integration
+         integration_type:slack
+         text:x:@.args/*/text

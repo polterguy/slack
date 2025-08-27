@@ -4,7 +4,7 @@ Slack integrations for Magic Cloud, allowing you to have your cloudlet interact 
 
 * __[magic.slack.post]__ - Posts **[text]** to **[channel]** with **[bot_token]**
 
-Notice, the above __[bot_token]__ must start with _"xoxb"_.
+Notice, the above __[bot_token]__ must start with _"xoxb-"_. If it doesn't it's _not_ a bot token!
 
 ## Events / webhooks
 
