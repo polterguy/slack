@@ -29,6 +29,21 @@ if
       yield
          challenge:x:@.arguments/*/challenge
 
+// Filtering out bot replies, to avoid replies sent from the bot into the same thread from appearing.
+data.connect:slack
+   data.read
+      table:requests
+      where
+         and
+            ts.eq:x:@.arguments/*/event/*/ts
+   if
+      exists:x:@data.read/*
+      .lambda
+
+         // This is a reply originating from the cloudlet itself.
+         return
+            result:success
+
 /*
  * Retrieving the ts value and checking if we've got the original request in our internal database.
  */
