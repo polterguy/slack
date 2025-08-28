@@ -4,6 +4,7 @@
  *
  * Arguments;
  * 
+ * - `parent_ts` is optional and if specified it will post text as a reply to the existing thread
  * - `bot_token` is mandatory token required to interact with Slack.
  * - `channel` is mandatory channel name from Slack.
  * - `text` is mandatory text message to post to Slack channel.
@@ -29,6 +30,16 @@ slots.create:magic.slack.post
       strings.concat
          .:"Bearer "
          get-value:x:@.arguments/*/bot_token
+
+   // Checking if [parent_ts] exists, at which point we're posting a reply.
+   if
+      and
+         exists:x:@.arguments/*/parent_ts
+         not-null:x:@.arguments/*/parent_ts
+      .lambda
+         add:x:../*/http.post/*/payload
+            .
+               thread_ts:x:@.arguments/*/parent_ts
 
    // Invoking Slack.
    http.post:"https://slack.com/api/chat.postMessage"
