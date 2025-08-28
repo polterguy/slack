@@ -7,10 +7,6 @@
  */
 .arguments:*
 
-// Logging entire invocation
-lambda2hyper:x:../*
-log.info:x:-
-
 /*
  * Checking if this is a URL challenge request, at which point we just echo the challenge back to caller.
  *
