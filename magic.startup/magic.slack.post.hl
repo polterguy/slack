@@ -41,55 +41,62 @@ slots.create:magic.slack.post
             .
                thread_ts:x:@.arguments/*/parent_ts
 
-   // Invoking Slack.
-   http.post:"https://slack.com/api/chat.postMessage"
-      convert:true
-      headers
-         Authorization:x:@.token
-         Content-Type:"application/json; charset=utf-8"
-      payload
-         channel:x:@.arguments/*/channel
-         text:x:@.arguments/*/text
-         mrkdwn:bool:true
+   /*
+    * Notice, to avoid race conditions where Slack invokes webhook before
+    * we get to store the request in our database, we wrap the invocation in
+    * a semaphore.
+    */
+   semaphore:slack.post
 
-   // Sanity checking result.
-   if
-      and
-         mte:x:@http.post
-            .:int:200
-         lt:x:@http.post
-            .:int:300
-         not-exists:x:@http.post/*/content/*/error
-         exists:x:@http.post/*/content/*/ts
-      .lambda
+      // Invoking Slack.
+      http.post:"https://slack.com/api/chat.postMessage"
+         convert:true
+         headers
+            Authorization:x:@.token
+            Content-Type:"application/json; charset=utf-8"
+         payload
+            channel:x:@.arguments/*/channel
+            text:x:@.arguments/*/text
+            mrkdwn:bool:true
 
-         // Success, first storing request into database!
-         data.connect:slack
+      // Sanity checking result.
+      if
+         and
+            mte:x:@http.post
+               .:int:200
+            lt:x:@http.post
+               .:int:300
+            not-exists:x:@http.post/*/content/*/error
+            exists:x:@http.post/*/content/*/ts
+         .lambda
 
-            // Checking if we've got an external ID.
-            if
-               and
-                  exists:x:@.arguments/*/external_id
-                  not-null:x:@.arguments/*/external_id
-               .lambda
+            // Success, first storing request into database!
+            data.connect:slack
 
-                  // Making sure we insert external ID into database.
-                  add:x:@data.connect/*/data.create/*/values
-                     get-nodes:x:@.arguments/*/external_id
+               // Checking if we've got an external ID.
+               if
+                  and
+                     exists:x:@.arguments/*/external_id
+                     not-null:x:@.arguments/*/external_id
+                  .lambda
 
-            // Inserting record into database.
-            data.create
-               table:requests
-               values
-                  ts:x:@http.post/*/content/*/ts
-                  text:x:@.arguments/*/text
+                     // Making sure we insert external ID into database.
+                     add:x:@data.connect/*/data.create/*/values
+                        get-nodes:x:@.arguments/*/external_id
 
-         // Then returning timestamp/ID to caller.
-         yield
-            ts:x:@http.post/*/content/*/ts
+               // Inserting record into database.
+               data.create
+                  table:requests
+                  values
+                     ts:x:@http.post/*/content/*/ts
+                     text:x:@.arguments/*/text
 
-   // Failure
-   throw:x:@http.post/*/content/*/error
-      status:int:500
-      public:bool:true
+            // Then returning timestamp/ID to caller.
+            yield
+               ts:x:@http.post/*/content/*/ts
+
+      // Failure
+      throw:x:@http.post/*/content/*/error
+         status:int:500
+         public:bool:true
 
