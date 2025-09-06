@@ -76,37 +76,52 @@ semaphore:slack.post
                exists:x:@data.read/*
                .lambda
 
-                  // This is a reply to a message originating from cloudlet, hence persisting reply.
-                  data.create
+                  /*
+                   * Notice, some times Slack invokes the webhook multiple times.
+                   * To avoid handling the same message twice we store the "ts" argument,
+                   * and we never handle the same message twice.
+                   */
+                  data.read
                      table:replies
-                     values
-                        request_id:x:@data.read/*/*/request_id
-                        text:x:@.arguments/*/event/*/text
+                     where
+                        and
+                           ts.eq:x:@.arguments/*/event/*/ts
+                  if
+                     not-exists:x:@data.read/*
+                     .lambda
 
-                  // Listing all callback slots that needs to be notified of event.
-                  slots.vocabulary:magic.slack.callbacks.
+                        // This is a reply to a message originating from cloudlet, hence persisting reply.
+                        data.create
+                           table:replies
+                           values
+                              request_id:x:@data.read/@data.read/*/*/request_id
+                              text:x:@.arguments/*/event/*/text
+                              ts:x:@.arguments/*/event/*/ts
 
-                  // Iterating through each slot returned above and invoking it.
-                  for-each:x:@slots.vocabulary/*
+                        // Listing all callback slots that needs to be notified of event.
+                        slots.vocabulary:magic.slack.callbacks.
 
-                     // Helper lambda object.
-                     .exe
-                        signal:SLOT_HERE
+                        // Iterating through each slot returned above and invoking it.
+                        for-each:x:@slots.vocabulary/*
 
-                     // Making sure we invoke the correct slot.
-                     set-value:x:@.exe/*/signal
-                        get-value:x:@.dp/#
+                           // Helper lambda object.
+                           .exe
+                              signal:SLOT_HERE
 
-                     // Parametrizing slot invocation.
-                     unwrap:x:+/*/*
-                     add:x:@.exe/*/signal
-                        .
-                           external_id:x:@data.read/*/*/external_id
-                           text:x:@.arguments/*/event/*/text
-                           original_request:x:@data.read/*/*/text
+                           // Making sure we invoke the correct slot.
+                           set-value:x:@.exe/*/signal
+                              get-value:x:@.dp/#
 
-                     // Invoking slot.
-                     eval:x:@.exe
+                           // Parametrizing slot invocation.
+                           unwrap:x:+/*/*
+                           add:x:@.exe/*/signal
+                              .
+                                 external_id:x:@data.read/@data.read/*/*/external_id
+                                 text:x:@.arguments/*/event/*/text
+                                 original_request:x:@data.read/#data.read/*/*/text
+
+                           // Invoking slot.
+                           eval:x:@.exe
 
 // Returning success to Slack.
 return
