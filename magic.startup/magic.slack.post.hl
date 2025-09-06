@@ -44,7 +44,7 @@ slots.create:magic.slack.post
             exists:x:@.arguments/*/parent_ts
             not-null:x:@.arguments/*/parent_ts
          .lambda
-            add:x:../*/http.post/*/payload
+            add:x:@sempahore/*/http.post/*/payload
                .
                   thread_ts:x:@.arguments/*/parent_ts
 
