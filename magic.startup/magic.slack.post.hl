@@ -31,22 +31,22 @@ slots.create:magic.slack.post
          .:"Bearer "
          get-value:x:@.arguments/*/bot_token
 
-   // Checking if [parent_ts] exists, at which point we're posting a reply.
-   if
-      and
-         exists:x:@.arguments/*/parent_ts
-         not-null:x:@.arguments/*/parent_ts
-      .lambda
-         add:x:../*/http.post/*/payload
-            .
-               thread_ts:x:@.arguments/*/parent_ts
-
    /*
     * Notice, to avoid race conditions where Slack invokes webhook before
     * we get to store the request in our database, we wrap the invocation in
     * a semaphore.
     */
    semaphore:slack.post
+
+      // Checking if [parent_ts] exists, at which point we're posting a reply.
+      if
+         and
+            exists:x:@.arguments/*/parent_ts
+            not-null:x:@.arguments/*/parent_ts
+         .lambda
+            add:x:../*/http.post/*/payload
+               .
+                  thread_ts:x:@.arguments/*/parent_ts
 
       // Invoking Slack.
       http.post:"https://slack.com/api/chat.postMessage"
