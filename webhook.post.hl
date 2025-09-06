@@ -25,81 +25,88 @@ if
       yield
          challenge:x:@.arguments/*/challenge
 
-// Filtering out bot replies, to avoid replies sent from the bot into the same thread from appearing.
-data.connect:slack
-   data.read
-      table:requests
-      where
-         and
-            ts.eq:x:@.arguments/*/event/*/ts
+/*
+ * Notice, to avoid race conditions where Slack invokes webhook before
+ * we get to store the request in our database, we wrap the invocation in
+ * a semaphore.
+ */
+semaphore:slack.post
+
+   // Filtering out bot replies, to avoid replies sent from the bot into the same thread from appearing.
+   data.connect:slack
+      data.read
+         table:requests
+         where
+            and
+               ts.eq:x:@.arguments/*/event/*/ts
+      if
+         exists:x:@data.read/*
+         .lambda
+
+            // This is a reply originating from the cloudlet itself.
+            return
+               result:success
+
+   /*
+    * Retrieving the ts value and checking if we've got the original request in our internal database.
+    */
    if
-      exists:x:@data.read/*
+      and
+         eq:x:@.arguments/*/event/*/type
+            .:message
+         exists:x:@.arguments/*/event/*/thread_ts
       .lambda
 
-         // This is a reply originating from the cloudlet itself.
-         return
-            result:success
+         /*
+          * Checking if this is an interesting message.
+          *
+          * Notice, we only deal with replies to messages sent from the cloudlet, and we ignore all other messages.
+          */
+         data.connect:slack
+            data.read
+               table:requests
+               columns
+                  request_id
+                  external_id
+                  text
+               where
+                  and
+                     ts.eq:x:@.arguments/*/event/*/thread_ts
+            if
+               exists:x:@data.read/*
+               .lambda
 
-/*
- * Retrieving the ts value and checking if we've got the original request in our internal database.
- */
-if
-   and
-      eq:x:@.arguments/*/event/*/type
-         .:message
-      exists:x:@.arguments/*/event/*/thread_ts
-   .lambda
-
-      /*
-       * Checking if this is an interesting message.
-       *
-       * Notice, we only deal with replies to messages sent from the cloudlet, and we ignore all other messages.
-       */
-      data.connect:slack
-         data.read
-            table:requests
-            columns
-               request_id
-               external_id
-               text
-            where
-               and
-                  ts.eq:x:@.arguments/*/event/*/thread_ts
-         if
-            exists:x:@data.read/*
-            .lambda
-
-               // This is a reply to a message originating from cloudlet, hence persisting reply.
-               data.create
-                  table:replies
-                  values
-                     request_id:x:@data.read/*/*/request_id
-                     text:x:@.arguments/*/event/*/text
-
-               // Listing all callback slots that needs to be notified of event.
-               slots.vocabulary:magic.slack.callbacks.
-
-               // Iterating through each slot returned above and invoking it.
-               for-each:x:@slots.vocabulary/*
-
-                  // Helper lambda object.
-                  .exe
-                     signal:SLOT_HERE
-
-                  // Making sure we invoke the correct slot.
-                  set-value:x:@.exe/*/signal
-                     get-value:x:@.dp/#
-
-                  // Parametrizing slot invocation.
-                  unwrap:x:+/*/*
-                  add:x:@.exe/*/signal
-                     .
-                        external_id:x:@data.read/*/*/external_id
+                  // This is a reply to a message originating from cloudlet, hence persisting reply.
+                  data.create
+                     table:replies
+                     values
+                        request_id:x:@data.read/*/*/request_id
                         text:x:@.arguments/*/event/*/text
-                        original_request:x:@data.read/*/*/text
 
-                  // Invoking slot.
-                  eval:x:@.exe
+                  // Listing all callback slots that needs to be notified of event.
+                  slots.vocabulary:magic.slack.callbacks.
+
+                  // Iterating through each slot returned above and invoking it.
+                  for-each:x:@slots.vocabulary/*
+
+                     // Helper lambda object.
+                     .exe
+                        signal:SLOT_HERE
+
+                     // Making sure we invoke the correct slot.
+                     set-value:x:@.exe/*/signal
+                        get-value:x:@.dp/#
+
+                     // Parametrizing slot invocation.
+                     unwrap:x:+/*/*
+                     add:x:@.exe/*/signal
+                        .
+                           external_id:x:@data.read/*/*/external_id
+                           text:x:@.arguments/*/event/*/text
+                           original_request:x:@data.read/*/*/text
+
+                     // Invoking slot.
+                     eval:x:@.exe
 
 // Returning success to Slack.
 return
