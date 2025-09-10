@@ -9,6 +9,7 @@
  * - `channel` is mandatory channel name from Slack.
  * - `text` is mandatory text message to post to Slack channel.
  * - `external_id` is an optional value intended to allow for serializing the external id of the request, required to deal with replies in client code.
+ * - `username` is an optional value which will become the username in the Slack channel having created the post.
  */
 slots.create:magic.slack.post
 
@@ -47,6 +48,10 @@ slots.create:magic.slack.post
             add:x:@semaphore/*/http.post/*/payload
                .
                   thread_ts:x:@.arguments/*/parent_ts
+
+      // Adding username argument, if specified.
+      add:x:./*/http.post/*/payload
+         get-nodes:x:@.arguments/*/username
 
       // Invoking Slack.
       http.post:"https://slack.com/api/chat.postMessage"
